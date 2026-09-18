@@ -135,18 +135,89 @@ def get_conclusions():
     return {"conclusions": rows}
 
 
+HYPOTHESIS_PLAYBOOKS = {
+    "hyp_oss_momentum": {
+        "what_it_means": "Products with open-source repositories and transparent self-hosting options outrank proprietary SaaS tools by converting developer skepticism into credibility.",
+        "why_it_works": "Product Hunt voters on Tuesday-Thursday are heavily developer and tech-early-adopter biased. Open-source signals longevity, zero vendor lock-in, and auditability.",
+        "founder_do": "Highlight GitHub stars, self-hosted Docker commands, or 'Apache 2.0 / MIT' in the first 2 sentences and media gallery.",
+        "founder_dont": "Do not hide self-hosting behind an enterprise contact sales gate if positioning as open-source.",
+        "good_example": "Supabase: 'The Open Source Firebase Alternative'",
+        "bad_example": "Generic Cloud: 'The modern cloud data platform'"
+    },
+    "hyp_outcome_framing": {
+        "what_it_means": "Framing your product around the end-state transformation ('Turn X into Y', 'Ship in minutes') captures twice as many top 2 finishes as listing internal software features.",
+        "why_it_works": "Casual scrollers make voting decisions in under 2.5 seconds. Transformations paint an immediate mental picture of relief or superpower, whereas feature lists require cognitive work to decipher.",
+        "founder_do": "Structure your tagline as: [Active Verb] + [Painful Input] into [Desired Desirable Outcome].",
+        "founder_dont": "Avoid 'All-in-one platform for...', 'The next generation tool for...', or 'AI-powered suite'.",
+        "good_example": "Lovable: 'Turn ideas into full-stack web apps in minutes'",
+        "bad_example": "AppBuilder: 'An AI-powered integrated development environment with modular components'"
+    },
+    "hyp_discussion_velocity": {
+        "what_it_means": "A healthy ratio of at least 10 comments per 100 upvotes separates durable community winners from artificial upvote spikes that collapse by evening.",
+        "why_it_works": "Product Hunt's ranking algorithm penalizes vote bursts that lack organic creator dialogue, reply depth, and back-and-forth maker discussions.",
+        "founder_do": "Reply to every single comment within 10 minutes with thoughtful questions, behind-the-scenes stories, or roadmaps.",
+        "founder_dont": "Never drop generic 'Thanks for the support!' single-line replies that kill discussion threads.",
+        "good_example": "Maker sharing origin failure story in first comment and asking users about their biggest workflow bottleneck.",
+        "bad_example": "500 upvotes with only 12 bot-like congratulations comments."
+    },
+    "hyp_vertical_ai": {
+        "what_it_means": "AI tools laser-focused on a single workflow or profession (e.g. immigration lawyer drafts, orthotist modeling) outperform general AI chatbots and prompt wrappers.",
+        "why_it_works": "The community suffers from generic AI fatigue. A tool with tailored domain schemas and bespoke inputs solves a painful problem immediately without prompt engineering.",
+        "founder_do": "Target one specific persona and show their exact pain being resolved with zero prompt setup.",
+        "founder_dont": "Do not market as 'Your personal AI assistant for everything' or 'Universal AI productivity copilot'.",
+        "good_example": "Klu.so: 'Turn customer support tickets into verified Jira bug reports'",
+        "bad_example": "OmniGen: 'ChatGPT on steroids for modern professionals'"
+    },
+    "hyp_weekend_indie": {
+        "what_it_means": "Saturday and Sunday feature lower vote volume hurdles, allowing niche creator utilities, fun indie apps, and developer micro-tools to clinch #1 easily.",
+        "why_it_works": "Venture-backed B2B companies launch Tuesday through Thursday. Weekend traffic consists of makers, weekend hobbyists, and casual tech explorers looking for delight.",
+        "founder_do": "Launch fun utilities, developer toys, audio/visual experimental tools, or open-source side projects on Saturday/Sunday.",
+        "founder_dont": "Avoid launching heavyweight enterprise B2B compliance or sales software on a Sunday morning.",
+        "good_example": "RetroSound 8-bit: 'Turn modern Spotify songs into authentic GameBoy chiptunes' (Weekend #1)",
+        "bad_example": "Enterprise SOC2 Automated Compliance Monitor launching Sunday 00:01 PST."
+    },
+    "hyp_brevity_punch": {
+        "what_it_means": "Taglines of 7 words or fewer convert higher on mobile cards and feed views because they avoid truncation and deliver an instant hook.",
+        "why_it_works": "Over 60% of Product Hunt browsing happens on mobile devices or fast desktop skimming. Long taglines get cut off with ellipses or skipped altogether.",
+        "founder_do": "Trim your tagline ruthlessly until every single remaining word carries functional weight.",
+        "founder_dont": "Don't cram keywords, funding news, or multi-clause descriptions into the tagline.",
+        "good_example": "Raycast: 'Your shortcut to everything' (4 words)",
+        "bad_example": "Comprehensive desktop launcher tool designed to streamline developer workflows and app switching (12 words)"
+    }
+}
+
+
 @app.get("/api/hypotheses")
 def get_hypotheses():
     rows = db_client.fetchall("SELECT * FROM hypotheses ORDER BY confidence_score DESC")
     for r in rows:
         history_query = """
-        SELECT * FROM hypothesis_logs
-        WHERE hypothesis_id = ?
-        ORDER BY day_number DESC
-        LIMIT 5
+        SELECT l.id, l.date, l.day_number, l.old_confidence, l.new_confidence, l.delta, l.reason,
+               p.id as launch_id, p.name as launch_name, p.tagline as launch_tagline, p.rank as launch_rank,
+               p.votes_count as launch_votes, p.archetype as launch_archetype, p.framing_style as launch_framing
+        FROM hypothesis_logs l
+        LEFT JOIN launches p ON l.evidence_launch_id = p.id
+        WHERE l.hypothesis_id = ?
+        ORDER BY l.day_number DESC
+        LIMIT 8
         """
         r["history"] = db_client.fetchall(history_query, (r["id"],))
+        
+        # Attach playbook
+        playbook = HYPOTHESIS_PLAYBOOKS.get(r["id"])
+        if not playbook:
+            playbook = {
+                "what_it_means": r.get("statement", ""),
+                "why_it_works": "Empirical patterns observed across daily rank #1-#3 placements.",
+                "founder_do": f"Align your launch positioning with {r.get('category', 'market dynamics')}.",
+                "founder_dont": "Avoid generic untargeted messaging.",
+                "good_example": "Leading rank #1 winner in this category.",
+                "bad_example": "Lagging product with misplaced positioning."
+            }
+        r["playbook"] = playbook
+
     return {"hypotheses": rows}
+
 
 
 @app.get("/api/launches")
