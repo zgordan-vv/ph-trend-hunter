@@ -191,12 +191,14 @@ def execute_genesis_synthesis(conn: sqlite3.Connection, day_10_date: str) -> Dic
         ON CONFLICT(id) DO NOTHING
         """, (h["id"], h["title"], h["statement"], h["category"], h["initial_confidence"], day_10_date, now))
         
-    executive_summary = (
+    llm_result = generate_genesis_llm_insights(day_10_date, total_products, winners)
+    executive_summary = llm_result.get("executive_summary") if isinstance(llm_result, dict) else (
         f"Across the first 10 days ({total_products} tracked launches), Product Hunt demonstrated clear structural preferences. "
         f"The leading winner archetype was {sorted_archetypes[0][0]} with {sorted_archetypes[0][1]} wins out of 10. "
         f"Winning products average an engagement ratio of 10.4% comments-per-upvote compared to 4.8% for ranks #6-#10. "
         f"We have codified 6 primary hypotheses regarding positioning, copy framing, maker velocity, and weekly seasonality."
     )
+    llm_insights_text = llm_result.get("full_insights", "") if isinstance(llm_result, dict) else str(llm_result or "")
     
     delta_from_yesterday = "Milestone achieved: Initial 10-day baseline established. Formulated 6 core hypotheses with initial confidence levels (68% - 82%)."
     
@@ -225,13 +227,12 @@ Below is the foundational model derived from empirical observation.
 - **Test Criteria**: Evaluated daily against ranking positions and copy framing.
 """
 
-    llm_analysis = generate_genesis_llm_insights(day_10_date, total_products, winners)
-    if llm_analysis:
+    if llm_insights_text:
         full_markdown += f"""
 ---
 
-### 4. Qualitative LLM Synthesis (Market & Founder Psychology)
-{llm_analysis}
+### 3. Qualitative Strategic Synthesis (Market & Founder Psychology)
+{llm_insights_text}
 """
 
     cur.execute("""
@@ -374,10 +375,12 @@ def execute_daily_calibration(conn: sqlite3.Connection, date_str: str, day_numbe
         delta_summary_points.append(f"{len(weakened)} hypotheses challenged (e.g. {weakened[0]['title']})")
     delta_str = "; ".join(delta_summary_points) if delta_summary_points else "All belief confidences held steady."
     
-    executive_summary = (
+    llm_result = generate_daily_calibration_llm_insights(day_number, date_str, winner, launches[1:4], active_hyps)
+    executive_summary = llm_result.get("executive_summary") if isinstance(llm_result, dict) else (
         f"Day {day_number} winner '{winner_name}' ({winner_arch} - \"{winner_tagline}\") calibrated our model. "
         f"{delta_str}. Model is tracking {len(active_hyps)} active/validated theses."
     )
+    llm_insights_text = llm_result.get("full_insights", "") if isinstance(llm_result, dict) else str(llm_result or "")
     
     full_markdown = f"""# Day {day_number} Evolutionary Conclusions Report
 
@@ -408,13 +411,12 @@ Every day the model tests its beliefs against new winners:
 - **Refuted/Discarded Theses**: {ref_count}
 """
 
-    llm_insights = generate_daily_calibration_llm_insights(day_number, date_str, winner, launches[1:4], active_hyps)
-    if llm_insights:
+    if llm_insights_text:
         full_markdown += f"""
 ---
 
-## 4. Qualitative LLM Deep Dive (Tactical Messaging & Edge)
-{llm_insights}
+## 4. Qualitative Strategic Breakdown (Tactical Messaging & Edge)
+{llm_insights_text}
 """
 
     cur.execute("""

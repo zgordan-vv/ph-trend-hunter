@@ -7,6 +7,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
     body {
@@ -550,6 +551,22 @@
                 </div>
               ` : ''}
 
+              <!-- AI Strategic Deep Dive (Gemini Analysis) -->
+              ${item.full_markdown && item.full_markdown.includes('###') ? `
+                <div class="pt-3 border-t border-slate-800/80">
+                  <button onclick="toggleMarkdownReport('${item.date}')" class="flex items-center justify-between w-full p-3 rounded-xl bg-slate-950/80 hover:bg-slate-950 border border-indigo-500/30 text-xs font-semibold text-indigo-300 transition-colors">
+                    <span class="flex items-center space-x-2">
+                      <i data-lucide="sparkles" class="w-4 h-4 text-amber-400"></i>
+                      <span>Gemini AI Qualitative Deep Dive (Founder Psychology & Positioning)</span>
+                    </span>
+                    <i id="icon-md-${item.date}" data-lucide="chevron-down" class="w-4 h-4 text-indigo-400 transition-transform"></i>
+                  </button>
+                  <div id="md-report-${item.date}" class="hidden mt-3 p-4 sm:p-5 rounded-xl bg-slate-950 border border-slate-800/80 text-xs leading-relaxed text-slate-300 space-y-3 prose prose-invert max-w-none">
+                    ${marked.parse(item.full_markdown)}
+                  </div>
+                </div>
+              ` : ''}
+
               <!-- Delta highlight -->
               ${item.delta_from_yesterday ? `
                 <div class="p-3 rounded-xl bg-slate-950/60 border border-slate-800 flex items-start space-x-2.5 text-xs text-slate-300">
@@ -564,6 +581,19 @@
 
       container.innerHTML = html;
       lucide.createIcons();
+    }
+
+    function toggleMarkdownReport(dateStr) {
+      const el = document.getElementById(`md-report-${dateStr}`);
+      const icon = document.getElementById(`icon-md-${dateStr}`);
+      if (!el) return;
+      if (el.classList.contains('hidden')) {
+        el.classList.remove('hidden');
+        if (icon) icon.classList.add('rotate-180');
+      } else {
+        el.classList.add('hidden');
+        if (icon) icon.classList.remove('rotate-180');
+      }
     }
 
     async function loadHypotheses() {
