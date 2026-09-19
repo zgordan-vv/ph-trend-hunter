@@ -12,6 +12,8 @@
     @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
     body {
       font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 15px;
+      line-height: 1.6;
     }
     code, pre, .font-mono {
       font-family: 'JetBrains Mono', monospace;
@@ -23,6 +25,37 @@
     .custom-scrollbar::-webkit-scrollbar-thumb {
       background-color: #334155;
       border-radius: 4px;
+    }
+    /* Long-form reading enhancement */
+    .prose-custom {
+      font-size: 0.9375rem; /* 15px */
+      line-height: 1.7;
+      color: #cbd5e1; /* slate-300 */
+    }
+    .prose-custom h1, .prose-custom h2, .prose-custom h3, .prose-custom h4 {
+      color: #f8fafc;
+      font-weight: 700;
+      margin-top: 1.25em;
+      margin-bottom: 0.5em;
+      letter-spacing: -0.01em;
+    }
+    .prose-custom h3 {
+      font-size: 1.0625rem; /* 17px */
+      color: #fdba74; /* amber-300 */
+    }
+    .prose-custom p {
+      margin-bottom: 0.85em;
+    }
+    .prose-custom strong {
+      color: #ffffff;
+      font-weight: 600;
+    }
+    .prose-custom ul, .prose-custom ol {
+      margin-bottom: 0.85em;
+      padding-left: 1.25em;
+    }
+    .prose-custom li {
+      margin-bottom: 0.35em;
     }
   </style>
 </head>
@@ -322,79 +355,79 @@
       <!-- Modal Body (Scrollable) -->
       <div class="p-6 overflow-y-auto space-y-6">
         <div>
-          <h2 id="modal-title" class="text-xl font-bold text-white mb-2">Hypothesis Title</h2>
-          <p id="modal-statement" class="text-sm text-slate-300 leading-relaxed bg-slate-950/60 p-3.5 rounded-xl border border-slate-800/80">
+          <h2 id="modal-title" class="text-2xl font-bold text-white mb-2.5">Hypothesis Title</h2>
+          <p id="modal-statement" class="text-base text-slate-200 leading-relaxed bg-slate-950/70 p-4 rounded-xl border border-slate-800">
             Statement goes here
           </p>
         </div>
 
         <!-- Metric Confidence Bar -->
-        <div class="p-4 rounded-xl bg-slate-950/40 border border-slate-800 space-y-2">
-          <div class="flex items-center justify-between text-xs">
+        <div class="p-4 rounded-xl bg-slate-950/40 border border-slate-800 space-y-2.5">
+          <div class="flex items-center justify-between text-sm">
             <span class="text-slate-400 font-medium">Empirical Confidence</span>
-            <span id="modal-confidence-text" class="font-mono font-bold text-white text-sm">85%</span>
+            <span id="modal-confidence-text" class="font-mono font-bold text-white text-base">85%</span>
           </div>
-          <div class="w-full bg-slate-950 rounded-full h-2.5 overflow-hidden border border-slate-800">
-            <div id="modal-confidence-bar" class="h-2.5 rounded-full transition-all duration-500 bg-indigo-500" style="width: 85%"></div>
+          <div class="w-full bg-slate-950 rounded-full h-3 overflow-hidden border border-slate-800">
+            <div id="modal-confidence-bar" class="h-3 rounded-full transition-all duration-500 bg-indigo-500" style="width: 85%"></div>
           </div>
-          <div class="flex items-center justify-between text-xs text-slate-400 pt-1">
-            <div>First Formulated: <span id="modal-created" class="text-slate-200">Day 10</span></div>
+          <div class="flex items-center justify-between text-xs sm:text-sm text-slate-400 pt-1">
+            <div>First Formulated: <span id="modal-created" class="text-slate-200 font-medium">Day 10</span></div>
             <div>Track Record: <span id="modal-record" class="font-semibold text-slate-200">3 confirmed / 1 challenged</span></div>
           </div>
         </div>
 
         <!-- Founder Playbook & What It Means -->
-        <div class="space-y-3">
-          <h3 class="text-xs font-bold uppercase tracking-wider text-orange-400 flex items-center space-x-2">
+        <div class="space-y-3.5">
+          <h3 class="text-xs sm:text-sm font-bold uppercase tracking-wider text-orange-400 flex items-center space-x-2">
             <i data-lucide="compass" class="w-4 h-4"></i>
             <span>Founder Playbook: What This Means For You</span>
           </h3>
 
-          <div class="grid grid-cols-1 gap-3 text-xs">
-            <div class="p-4 rounded-xl bg-slate-950 border border-slate-800/80 space-y-1.5">
-              <div class="font-bold text-slate-200">The Underlying Mechanism</div>
-              <p id="modal-what-means" class="text-slate-400 leading-relaxed">Explanation</p>
+          <div class="grid grid-cols-1 gap-3.5 text-sm">
+            <div class="p-4 sm:p-5 rounded-xl bg-slate-950 border border-slate-800/80 space-y-2">
+              <div class="font-bold text-slate-100 text-base">The Underlying Mechanism</div>
+              <p id="modal-what-means" class="text-slate-300 leading-relaxed">Explanation</p>
             </div>
 
-            <div class="p-4 rounded-xl bg-slate-950 border border-slate-800/80 space-y-1.5">
-              <div class="font-bold text-slate-200">Why the Product Hunt Algorithm & Voters React</div>
-              <p id="modal-why-works" class="text-slate-400 leading-relaxed">Why it works</p>
+            <div class="p-4 sm:p-5 rounded-xl bg-slate-950 border border-slate-800/80 space-y-2">
+              <div class="font-bold text-slate-100 text-base">Why the Product Hunt Algorithm & Voters React</div>
+              <p id="modal-why-works" class="text-slate-300 leading-relaxed">Why it works</p>
             </div>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div class="p-4 rounded-xl bg-emerald-950/20 border border-emerald-500/30 space-y-1.5">
-                <div class="font-bold text-emerald-400 flex items-center space-x-1.5">
-                  <i data-lucide="check-circle" class="w-3.5 h-3.5"></i>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              <div class="p-4 sm:p-5 rounded-xl bg-emerald-950/20 border border-emerald-500/30 space-y-2">
+                <div class="font-bold text-emerald-400 text-sm sm:text-base flex items-center space-x-2">
+                  <i data-lucide="check-circle" class="w-4 h-4"></i>
                   <span>What To Do</span>
                 </div>
-                <p id="modal-founder-do" class="text-emerald-200/90 leading-relaxed">Actionable advice</p>
+                <p id="modal-founder-do" class="text-emerald-100 leading-relaxed text-sm">Actionable advice</p>
               </div>
 
-              <div class="p-4 rounded-xl bg-rose-950/20 border border-rose-500/30 space-y-1.5">
-                <div class="font-bold text-rose-400 flex items-center space-x-1.5">
-                  <i data-lucide="x-circle" class="w-3.5 h-3.5"></i>
+              <div class="p-4 sm:p-5 rounded-xl bg-rose-950/20 border border-rose-500/30 space-y-2">
+                <div class="font-bold text-rose-400 text-sm sm:text-base flex items-center space-x-2">
+                  <i data-lucide="x-circle" class="w-4 h-4"></i>
                   <span>What To Avoid</span>
                 </div>
-                <p id="modal-founder-dont" class="text-rose-200/90 leading-relaxed">Mistake to avoid</p>
+                <p id="modal-founder-dont" class="text-rose-100 leading-relaxed text-sm">Mistake to avoid</p>
               </div>
             </div>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div class="p-3 rounded-xl bg-slate-950/80 border border-slate-800 text-[11px] space-y-1">
-                <span class="text-slate-500 uppercase font-semibold">Winning Pattern Example:</span>
-                <div id="modal-good-example" class="font-medium text-slate-200">Example</div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              <div class="p-4 rounded-xl bg-slate-950/80 border border-slate-800 text-xs sm:text-sm space-y-1.5">
+                <span class="text-slate-400 uppercase font-semibold text-xs tracking-wider">Winning Pattern Example:</span>
+                <div id="modal-good-example" class="font-medium text-slate-100 leading-snug">Example</div>
               </div>
-              <div class="p-3 rounded-xl bg-slate-950/80 border border-slate-800 text-[11px] space-y-1">
-                <span class="text-slate-500 uppercase font-semibold">Losing / Weak Pattern Example:</span>
-                <div id="modal-bad-example" class="font-medium text-slate-400">Example</div>
+              <div class="p-4 rounded-xl bg-slate-950/80 border border-slate-800 text-xs sm:text-sm space-y-1.5">
+                <span class="text-slate-400 uppercase font-semibold text-xs tracking-wider">Losing / Weak Pattern Example:</span>
+                <div id="modal-bad-example" class="font-medium text-slate-300 leading-snug">Example</div>
               </div>
             </div>
           </div>
         </div>
 
         <!-- Empirical Evidence Log & Calibration History -->
-        <div class="space-y-3">
-          <h3 class="text-xs font-bold uppercase tracking-wider text-indigo-400 flex items-center space-x-2">
+        <div class="space-y-3.5">
+          <h3 class="text-xs sm:text-sm font-bold uppercase tracking-wider text-indigo-400 flex items-center space-x-2">
             <i data-lucide="history" class="w-4 h-4"></i>
             <span>Empirical Evidence & Calibration History</span>
           </h3>
@@ -519,31 +552,31 @@
 
               <!-- Executive Summary -->
               <div>
-                <h3 class="text-base font-bold text-white mb-1.5">${item.title}</h3>
-                <p class="text-xs sm:text-sm text-slate-300 leading-relaxed">${item.executive_summary}</p>
+                <h3 class="text-lg font-bold text-white mb-2">${item.title}</h3>
+                <p class="text-sm sm:text-base text-slate-200 leading-relaxed font-normal">${item.executive_summary}</p>
               </div>
 
               <!-- Belief Shifts (for Day 11+) -->
               ${item.belief_shifts && item.belief_shifts.length > 0 ? `
                 <div class="pt-2">
-                  <div class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2.5 flex items-center space-x-1.5">
-                    <i data-lucide="git-commit" class="w-3.5 h-3.5 text-indigo-400"></i>
+                  <div class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 flex items-center space-x-1.5">
+                    <i data-lucide="git-commit" class="w-4 h-4 text-indigo-400"></i>
                     <span>Hypothesis Recalibrations Today</span>
                   </div>
-                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     ${item.belief_shifts.map(shift => {
                       const isUp = shift.delta > 0;
                       const isZero = shift.delta === 0;
                       const badgeBg = isUp ? 'bg-emerald-950/60 border-emerald-500/30 text-emerald-400' : isZero ? 'bg-slate-800 border-slate-700 text-slate-400' : 'bg-rose-950/60 border-rose-500/30 text-rose-400';
                       return `
-                        <div class="p-3 rounded-xl bg-slate-950 border border-slate-800/80 space-y-1.5">
-                          <div class="flex items-center justify-between text-xs">
-                            <span class="font-bold text-slate-200 truncate pr-2">${shift.hypothesis_title}</span>
-                            <span class="px-2 py-0.5 rounded text-[11px] font-mono font-bold border ${badgeBg}">
+                        <div class="p-3.5 rounded-xl bg-slate-950 border border-slate-800/80 space-y-2">
+                          <div class="flex items-center justify-between text-xs sm:text-sm">
+                            <span class="font-bold text-slate-100 truncate pr-2">${shift.hypothesis_title}</span>
+                            <span class="px-2.5 py-0.5 rounded text-xs font-mono font-bold border ${badgeBg}">
                               ${Math.round(shift.old_confidence*100)}% ➔ ${Math.round(shift.new_confidence*100)}% (${shift.delta > 0 ? '+' : ''}${Math.round(shift.delta*100)}%)
                             </span>
                           </div>
-                          <p class="text-[11px] text-slate-400 leading-snug">${shift.reason}</p>
+                          <p class="text-xs sm:text-sm text-slate-300 leading-relaxed">${shift.reason}</p>
                         </div>
                       `;
                     }).join('')}
@@ -554,14 +587,14 @@
               <!-- AI Strategic Deep Dive (Gemini Analysis) -->
               ${item.full_markdown && item.full_markdown.includes('###') ? `
                 <div class="pt-3 border-t border-slate-800/80">
-                  <button onclick="toggleMarkdownReport('${item.date}')" class="flex items-center justify-between w-full p-3 rounded-xl bg-slate-950/80 hover:bg-slate-950 border border-indigo-500/30 text-xs font-semibold text-indigo-300 transition-colors">
-                    <span class="flex items-center space-x-2">
+                  <button onclick="toggleMarkdownReport('${item.date}')" class="flex items-center justify-between w-full p-3.5 rounded-xl bg-slate-950/80 hover:bg-slate-950 border border-indigo-500/40 text-xs sm:text-sm font-semibold text-indigo-300 hover:text-indigo-200 transition-colors">
+                    <span class="flex items-center space-x-2.5">
                       <i data-lucide="sparkles" class="w-4 h-4 text-amber-400"></i>
                       <span>Gemini AI Qualitative Deep Dive (Founder Psychology & Positioning)</span>
                     </span>
                     <i id="icon-md-${item.date}" data-lucide="chevron-down" class="w-4 h-4 text-indigo-400 transition-transform"></i>
                   </button>
-                  <div id="md-report-${item.date}" class="hidden mt-3 p-4 sm:p-5 rounded-xl bg-slate-950 border border-slate-800/80 text-xs leading-relaxed text-slate-300 space-y-3 prose prose-invert max-w-none">
+                  <div id="md-report-${item.date}" class="hidden mt-3 p-5 sm:p-6 rounded-xl bg-slate-950 border border-slate-800 text-sm sm:text-base leading-relaxed text-slate-200 space-y-4 prose-custom">
                     ${marked.parse(item.full_markdown)}
                   </div>
                 </div>
@@ -569,9 +602,9 @@
 
               <!-- Delta highlight -->
               ${item.delta_from_yesterday ? `
-                <div class="p-3 rounded-xl bg-slate-950/60 border border-slate-800 flex items-start space-x-2.5 text-xs text-slate-300">
+                <div class="p-3.5 rounded-xl bg-slate-950/60 border border-slate-800 flex items-start space-x-3 text-xs sm:text-sm text-slate-300">
                   <i data-lucide="info" class="w-4 h-4 text-orange-400 shrink-0 mt-0.5"></i>
-                  <div><strong class="text-orange-300">Model Evolution:</strong> ${item.delta_from_yesterday}</div>
+                  <div><strong class="text-orange-300 font-semibold">Model Evolution:</strong> ${item.delta_from_yesterday}</div>
                 </div>
               ` : ''}
             </div>
@@ -647,28 +680,28 @@
                 </div>
               </div>
 
-              <h3 class="text-base font-bold text-white group-hover:text-orange-300 transition-colors">${h.title}</h3>
-              <p class="text-xs text-slate-300 leading-relaxed">${h.statement}</p>
+              <h3 class="text-lg font-bold text-white group-hover:text-orange-300 transition-colors">${h.title}</h3>
+              <p class="text-sm text-slate-200 leading-relaxed">${h.statement}</p>
             </div>
 
-            <div class="space-y-3 pt-2 border-t border-slate-800/80">
+            <div class="space-y-3 pt-3 border-t border-slate-800/80">
               <div>
-                <div class="flex items-center justify-between text-xs mb-1.5">
+                <div class="flex items-center justify-between text-xs sm:text-sm mb-1.5">
                   <span class="text-slate-400 font-medium">Empirical Confidence</span>
                   <span class="font-mono font-bold text-white">${confPercent}%</span>
                 </div>
-                <div class="w-full bg-slate-950 rounded-full h-2 overflow-hidden border border-slate-800">
-                  <div class="${colorClass} h-2 rounded-full transition-all duration-500" style="width: ${confPercent}%"></div>
+                <div class="w-full bg-slate-950 rounded-full h-2.5 overflow-hidden border border-slate-800">
+                  <div class="${colorClass} h-2.5 rounded-full transition-all duration-500" style="width: ${confPercent}%"></div>
                 </div>
               </div>
 
-              <div class="flex items-center justify-between text-[11px] text-slate-400">
-                <div>Created: <span class="text-slate-300">Day ${h.created_day}</span></div>
+              <div class="flex items-center justify-between text-xs text-slate-400">
+                <div>Created: <span class="text-slate-200 font-medium">Day ${h.created_day}</span></div>
                 <div>Record: <span class="text-emerald-400 font-bold">${h.times_confirmed} confirmed</span> / <span class="text-rose-400 font-bold">${h.times_challenged} challenged</span></div>
               </div>
-              <div class="text-[11px] font-semibold text-orange-400/90 group-hover:text-orange-300 flex items-center space-x-1 pt-0.5">
+              <div class="text-xs font-semibold text-orange-400 group-hover:text-orange-300 flex items-center space-x-1.5 pt-1">
                 <span>View evidence log & founder playbook</span>
-                <span>&rarr;</span>
+                <span class="text-sm">&rarr;</span>
               </div>
             </div>
           </div>
@@ -729,27 +762,29 @@
           const shiftStr = `${Math.round(log.old_confidence * 100)}% ➔ ${Math.round(log.new_confidence * 100)}% (${deltaStr})`;
 
           return `
-            <div class="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
-              <div class="flex items-center justify-between text-xs">
-                <div class="flex items-center space-x-2">
-                  <span class="px-2 py-0.5 rounded font-mono font-bold bg-slate-800 text-slate-300 text-[11px]">Day ${log.day_number}</span>
-                  <span class="text-slate-400 font-mono text-[11px]">${log.date}</span>
+            <div class="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-2.5">
+              <div class="flex items-center justify-between text-xs sm:text-sm">
+                <div class="flex items-center space-x-2.5">
+                  <span class="px-2.5 py-0.5 rounded font-mono font-bold bg-slate-800 text-slate-200 text-xs">Day ${log.day_number}</span>
+                  <span class="text-slate-400 font-mono text-xs">${log.date}</span>
                 </div>
-                <span class="px-2 py-0.5 rounded text-[11px] font-mono font-bold border ${deltaBadgeClass}">${shiftStr}</span>
+                <span class="px-2.5 py-0.5 rounded text-xs font-mono font-bold border ${deltaBadgeClass}">${shiftStr}</span>
               </div>
-              <p class="text-xs text-slate-300 leading-relaxed">${log.reason}</p>
+              <p class="text-sm text-slate-200 leading-relaxed">${log.reason}</p>
               ${log.launch_name ? `
-                <div class="pt-1 flex items-center space-x-2 text-[11px] text-slate-400 bg-slate-900/60 p-2 rounded-lg border border-slate-800/80">
-                  <span class="font-bold text-slate-200">#${log.launch_rank || 1} ${log.launch_name}:</span>
-                  <span class="truncate italic text-slate-300">"${log.launch_tagline || ''}"</span>
-                  <span class="shrink-0 text-slate-500 font-mono">(${log.launch_votes || 0} votes)</span>
+                <div class="pt-1.5 flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs sm:text-sm text-slate-300 bg-slate-900/80 p-2.5 rounded-lg border border-slate-800">
+                  <div class="flex items-center space-x-2 truncate">
+                    <span class="font-bold text-white">#${log.launch_rank || 1} ${log.launch_name}:</span>
+                    <span class="truncate italic text-slate-300">"${log.launch_tagline || ''}"</span>
+                  </div>
+                  <span class="shrink-0 text-slate-400 font-mono text-xs">(${log.launch_votes || 0} votes)</span>
                 </div>
               ` : ''}
             </div>
           `;
         }).join('');
       } else {
-        historyList.innerHTML = `<div class="text-xs text-slate-500 p-3 bg-slate-950 rounded-xl border border-slate-800">Formulated in Day 10 Genesis baseline. No subsequent daily calibrations logged yet.</div>`;
+        historyList.innerHTML = `<div class="text-sm text-slate-400 p-4 bg-slate-950 rounded-xl border border-slate-800">Formulated in Day 10 Genesis baseline. No subsequent daily calibrations logged yet.</div>`;
       }
 
       // Show modal
@@ -806,20 +841,20 @@
       container.innerHTML = data.launches.map(p => {
         const isWinner = p.rank === 1;
         return `
-          <div class="p-4 rounded-xl bg-slate-900 border ${isWinner ? 'border-orange-500/40 bg-gradient-to-r from-orange-500/5 to-transparent' : 'border-slate-800'} flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div class="flex items-start space-x-3.5">
-              <div class="w-8 h-8 rounded-lg ${isWinner ? 'bg-orange-500 text-slate-950 font-black' : 'bg-slate-800 text-slate-300 font-bold'} flex items-center justify-center text-sm shrink-0">
+          <div class="p-5 rounded-xl bg-slate-900 border ${isWinner ? 'border-orange-500/40 bg-gradient-to-r from-orange-500/5 to-transparent' : 'border-slate-800'} flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div class="flex items-start space-x-4">
+              <div class="w-9 h-9 rounded-lg ${isWinner ? 'bg-orange-500 text-slate-950 font-black text-base' : 'bg-slate-800 text-slate-200 font-bold text-sm'} flex items-center justify-center shrink-0">
                 #${p.rank}
               </div>
-              <div class="space-y-1">
-                <div class="flex items-center space-x-2">
-                  <h4 class="text-sm font-bold text-white hover:text-orange-400 transition-colors cursor-pointer">${p.name}</h4>
-                  <span class="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-slate-800 text-slate-300 border border-slate-700">${p.archetype || 'Utility'}</span>
-                  <span class="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">${p.framing_style || 'Direct'}</span>
+              <div class="space-y-1.5">
+                <div class="flex items-center space-x-2.5">
+                  <h4 class="text-base font-bold text-white hover:text-orange-400 transition-colors cursor-pointer">${p.name}</h4>
+                  <span class="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-slate-800 text-slate-300 border border-slate-700">${p.archetype || 'Utility'}</span>
+                  <span class="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">${p.framing_style || 'Direct'}</span>
                 </div>
-                <p class="text-xs text-slate-300">${p.tagline}</p>
-                <div class="text-[11px] text-slate-500 flex items-center space-x-3 pt-0.5">
-                  <span>Maker: <strong class="text-slate-400">@${p.maker_name}</strong></span>
+                <p class="text-sm text-slate-200 leading-relaxed">${p.tagline}</p>
+                <div class="text-xs text-slate-400 flex items-center space-x-3 pt-0.5">
+                  <span>Maker: <strong class="text-slate-300">@${p.maker_name}</strong></span>
                   ${p.topics && Array.isArray(p.topics) ? `<span>Topics: ${p.topics.join(', ')}</span>` : ''}
                 </div>
               </div>
@@ -827,12 +862,12 @@
 
             <div class="flex items-center space-x-4 self-end sm:self-center shrink-0">
               <div class="text-right">
-                <div class="text-xs font-bold text-white">${p.votes_count} <span class="text-slate-400 font-normal">upvotes</span></div>
-                <div class="text-[11px] text-slate-400">${p.comments_count} comments</div>
+                <div class="text-sm font-bold text-white">${p.votes_count} <span class="text-slate-400 font-normal">upvotes</span></div>
+                <div class="text-xs text-slate-400">${p.comments_count} comments</div>
               </div>
-              <div class="px-2.5 py-1 rounded-lg bg-slate-950 border border-slate-800 text-right">
-                <div class="text-[10px] text-slate-500">Discussion Ratio</div>
-                <div class="text-xs font-mono font-bold text-orange-400">${p.engagement_ratio || ((p.comments_count/Math.max(1, p.votes_count))*100).toFixed(1)}%</div>
+              <div class="px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-right">
+                <div class="text-xs text-slate-400">Discussion Ratio</div>
+                <div class="text-sm font-mono font-bold text-orange-400">${p.engagement_ratio || ((p.comments_count/Math.max(1, p.votes_count))*100).toFixed(1)}%</div>
               </div>
             </div>
           </div>
