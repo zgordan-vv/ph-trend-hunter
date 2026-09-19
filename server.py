@@ -296,6 +296,20 @@ async def handle_chat_query(request: Request):
         }, status_code=500)
 
 
+@app.get("/api/chat/knowledge")
+def get_user_knowledge_api():
+    from db import get_all_user_knowledge
+    return {"status": "success", "knowledge": get_all_user_knowledge()}
+
+
+@app.post("/api/chat/clear-knowledge")
+def clear_user_knowledge_api():
+    from db import clear_all_user_knowledge
+    clear_all_user_knowledge()
+    return {"status": "success", "message": "Knowledge cleared"}
+
+
+
 @app.post("/api/actions/trigger")
 def trigger_cycle():
     today_str = datetime.utcnow().strftime("%Y-%m-%d")

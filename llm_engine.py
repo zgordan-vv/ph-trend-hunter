@@ -354,8 +354,8 @@ def search_knowledge_base(query: str, limit: int = 20) -> Dict[str, Any]:
 
 def extract_and_save_user_knowledge(message: str) -> Optional[Dict[str, Any]]:
     """
-    Detects if the user is teaching the assistant a definition or classification rule
-    (e.g., 'Consider tools like RetroSound, HabitZen as B2C', 'B2C means direct consumer apps').
+    Detects if the user is explicitly teaching the assistant a definition or classification rule
+    (e.g., 'Consider tools like RetroSound, HabitZen as B2C', 'B2C is defined as direct consumer apps').
     Saves it to user_knowledge table and returns the learned concept.
     """
     from db import save_user_knowledge
@@ -364,30 +364,23 @@ def extract_and_save_user_knowledge(message: str) -> Optional[Dict[str, Any]]:
     msg = message.strip()
     
     # Pattern A: consider / treat / classify / regard / count X as Y
-    mA = re.search(r'(?:consider|treat|classify|regard|count)\s+(.+?)\s+as\s+([a-zA-Z0-9_\-\s]+)', msg, re.I)
+    mA = re.search(r'^(?:please\s+)?(?:consider|treat|classify|regard|count)\s+(.+?)\s+as\s+([a-zA-Z0-9_\-\s]+)$', msg, re.I)
     if mA:
         concept = mA.group(2).strip().upper()
         definition = mA.group(1).strip()
         if len(concept) <= 30 and len(definition) >= 3:
             return save_user_knowledge(concept, definition, msg)
 
-    # Pattern B: X means / is defined as / refers to / stands for Y
-    mB = re.search(r'([a-zA-Z0-9_\-\s]{2,25}?)\s+(?:means?|is defined as|refer to|refers to|stands for)\s+(.+)', msg, re.I)
+    # Pattern B: X means / is defined as / stands for Y
+    mB = re.search(r'^([a-zA-Z0-9_\-\s]{2,25}?)\s+(?:means|is defined as|stands for)\s+(.+)$', msg, re.I)
     if mB:
         concept = mB.group(1).strip().upper()
         definition = mB.group(2).strip()
-        if len(definition) >= 3:
-            return save_user_knowledge(concept, definition, msg)
-
-    # Pattern C: X is / are Y (for key business / tech terms)
-    mC = re.search(r'([a-zA-Z0-9_\-\s]{2,20}?)\s+(?:are|is)\s+(.+)', msg, re.I)
-    if mC:
-        concept = mC.group(1).strip().upper()
-        definition = mC.group(2).strip()
-        if concept in ['B2B', 'B2C', 'SAAS', 'OSS', 'DEVTOOLS', 'CRYPTO', 'FINTECH', 'NO-CODE', 'CONSUMER', 'ENTERPRISE']:
+        if len(definition) >= 3 and concept in ['B2B', 'B2C', 'SAAS', 'OSS', 'DEVTOOLS', 'CRYPTO', 'FINTECH', 'NO-CODE', 'CONSUMER', 'ENTERPRISE']:
             return save_user_knowledge(concept, definition, msg)
 
     return None
+
 
 
 def ask_ph_assistant(question: str, history: Optional[List[Dict[str, str]]] = None) -> Dict[str, Any]:
@@ -428,14 +421,14 @@ def ask_ph_assistant(question: str, history: Optional[List[Dict[str, str]]] = No
             h_lines.append(f"{role}: {turn.get('content', '').strip()}")
         history_context = "\n".join(h_lines)
 
-    # If NO relevant launches, hypotheses, conclusions, or user knowledge are found:
-    if not launches and not hypotheses and not conclusions and not user_knowledge_list:
+    # If NO relevant launches, hypotheses, or conclusions are found:
+    if not launches and not hypotheses and not conclusions:
         timeframe_note = f" (specifically filtering for the last {days_limit} days)" if days_limit else ""
         query_desc = f" matching '{', '.join(keywords)}'" if keywords else ""
         return {
             "answer": (
                 f"I could not find any information about that in the tracked Product Hunt launches{timeframe_note}.\n\n"
-                f"Our database currently tracks **{total_days} continuous days** of verified Product Hunt leaderboards, "
+                f"Our database tracks **{total_days} continuous days** of verified Product Hunt leaderboards, "
                 f"encompassing top developer tools, open-source infrastructure, productivity utilities, audio/creator tools, "
                 f"and design software. No products, winners, or hypotheses{query_desc} were identified in this dataset."
             ),
@@ -469,15 +462,15 @@ def ask_ph_assistant(question: str, history: Optional[List[Dict[str, str]]] = No
         )
     conclusions_text = "\n".join(conclusions_context) if conclusions_context else ""
 
-    prompt = f"""You are the PH Trend Hunter AI Assistant. Your job is to answer the user's question with surgical precision based EXCLUSIVELY on the verified Product Hunt launch data and user-taught definitions provided below.
+    prompt = f"""You are the PH Trend Hunter AI Assistant. Your job is to answer the user's question with surgical precision based EXCLUSIVELY on the verified Product Hunt launch data provided below.
 
-{f"CONVERSATION HISTORY (SHORT-TERM MEMORY):" if history_context else ""}
+{f"CONVERSATION HISTORY:" if history_context else ""}
 {history_context if history_context else ""}
 
 USER QUESTION:
 "{question}"
 
-{f"USER-TAUGHT DEFINITIONS & CLASSIFICATION RULES (LONG-TERM MEMORY):" if user_knowledge_context else ""}
+{f"USER DEFINITIONS (Use if relevant to question):" if user_knowledge_context else ""}
 {user_knowledge_context if user_knowledge_context else ""}
 
 VERIFIED PRODUCT HUNT DATA CONTEXT:
@@ -492,28 +485,25 @@ VERIFIED PRODUCT HUNT DATA CONTEXT:
 {f"[Conclusions Context]:" if conclusions_text else ""}
 {conclusions_text}
 
-STRICT GROUNDING & MEMORY RULES:
-1. Answer using ONLY the information in the context and user-taught definitions above.
-2. Apply user-taught definitions and rules from memory! (For example, if the user defines or previously classified specific tools/categories as B2B or B2C, use those exact rules to analyze and classify the launches).
-3. If the user is teaching you a rule or definition, acknowledge that you have learned and saved this rule into memory, and demonstrate how it applies to the tracked Product Hunt launches.
-4. DO NOT hallucinate, invent products, fabricate upvote counts, or import outside examples.
-5. If the context does not fully answer the user's question, state what is known from the context, and honestly acknowledge what was NOT found in the tracked dataset.
-6. Voice: Knowledgeable friend and product strategist. Direct, warm, crisp.
-7. Absolute bans: No false contrasts ("This isn't about X, it's about Y"), no staccato drama sentences ("Fast. And we are not ready."), no emojis (no 🤖, 🧠, ⚡, 🚀), no marketing hype words ("revolutionary", "game-changer", "unleash", "supercharge").
-8. Format your response cleanly in Markdown with bold product names and bullet points for readability."""
+STRICT GROUNDING RULES:
+1. Answer using ONLY the information in the context above.
+2. DO NOT hallucinate, invent products, fabricate upvote counts, or import outside examples.
+3. If the context does not contain the answer, honestly acknowledge what was NOT found in the tracked dataset.
+4. Do NOT output meta commentary, explanations of your internal memory, or lists of memory definitions unless the user explicitly asks about them.
+5. Voice: Knowledgeable friend and product strategist. Direct, warm, crisp.
+6. Absolute bans: No false contrasts ("This isn't about X, it's about Y"), no staccato drama sentences ("Fast. And we are not ready."), no emojis (no 🤖, 🧠, ⚡, 🚀), no marketing hype words ("revolutionary", "game-changer", "unleash", "supercharge").
+7. Format your response cleanly in Markdown with bold product names and bullet points for readability."""
 
     ai_answer = call_gemini(prompt, temperature=0.2)
 
     # Fallback response in case Gemini API is offline or unconfigured
     if not ai_answer:
-        # Build direct grounded synthesis from context and user knowledge
+        # Build direct grounded synthesis from context
         lines = []
-        if learned:
-            lines.append(f"Got it! I have saved this definition to memory: **{learned['concept']}** = *{learned['definition']}*.\n")
 
         q_lower = question.lower()
         if "b2b" in q_lower and "b2c" in q_lower:
-            # Dedicated analytical breakdown applying user knowledge & database archetypes
+            # Dedicated analytical breakdown applying database archetypes
             b2b_products = []
             b2c_products = []
             for l in launches:
@@ -525,12 +515,6 @@ STRICT GROUNDING & MEMORY RULES:
                     b2c_products.append(l)
 
             lines.append("### B2B vs B2C Launch & Win Distribution\n")
-            if user_knowledge_list:
-                lines.append("**Active Learned Memory Rules:**")
-                for uk in user_knowledge_list:
-                    lines.append(f"- *{uk['concept']}*: {uk['definition']}")
-                lines.append("")
-
             lines.append(f"Based on the **{total_days} tracked days** of Product Hunt leaderboards:\n")
             lines.append(f"1. **B2B / Developer Infrastructure Tools Win ~70-75% of Weekday #1 Slots**:")
             lines.append(f"   - On Tuesdays through Thursdays, open-source and developer tools consistently capture rank #1 with 1,000+ votes (e.g. **Novu v2**, **Cal.com v3**, **Supabase Vault**, **Dify.AI v1**).")
@@ -541,11 +525,6 @@ STRICT GROUNDING & MEMORY RULES:
             lines.append(f"**Conclusion**: **B2B products win more frequently overall** because weekday launch volumes and voting activity are substantially higher, but **B2C tools hold a distinct monopoly over weekend leaderboards**.")
         else:
             lines.append(f"Based on our tracked database of {total_days} days of Product Hunt launches, here is what was found:\n")
-            if user_knowledge_list:
-                lines.append("**Learned User Knowledge:**")
-                for uk in user_knowledge_list[:3]:
-                    lines.append(f"- *{uk['concept']}*: {uk['definition']}")
-                lines.append("")
             if conclusions:
                 lines.append("\n### Strategic Conclusions Context:")
                 for c in conclusions[:2]:
@@ -559,6 +538,7 @@ STRICT GROUNDING & MEMORY RULES:
                 for h in hypotheses[:3]:
                     lines.append(f"- **{h.get('title')}** ({int(h.get('confidence_score', 0.5)*100)}% confidence): {h.get('statement')}")
         ai_answer = "\n".join(lines)
+
 
     # Prepare lightweight sources list for UI reference
     sources_summary = [

@@ -533,3 +533,12 @@ def get_all_user_knowledge() -> List[Dict[str, Any]]:
     except Exception:
         return []
 
+
+def clear_all_user_knowledge() -> int:
+    try:
+        db_client.execute("DELETE FROM user_knowledge")
+        return 0
+    except Exception:
+        return -1
+
+
