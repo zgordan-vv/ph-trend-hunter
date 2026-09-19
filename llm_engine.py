@@ -59,7 +59,10 @@ def call_gemini(prompt: str, temperature: float = 0.4) -> Optional[str]:
                 if candidates:
                     parts = candidates[0].get("content", {}).get("parts", [])
                     if parts:
-                        return parts[0].get("text", "")
+                        text_chunks = [p.get("text", "") for p in parts if "text" in p]
+                        full_text = "".join(text_chunks)
+                        if full_text.strip():
+                            return full_text
         except Exception:
             continue
 
