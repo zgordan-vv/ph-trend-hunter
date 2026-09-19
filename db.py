@@ -261,6 +261,16 @@ def init_sqlite_db():
     );
     """)
 
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS user_knowledge (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        concept TEXT NOT NULL,
+        definition TEXT NOT NULL,
+        source_message TEXT,
+        created_at TEXT NOT NULL
+    );
+    """)
+
     conn.commit()
     conn.close()
 
@@ -354,6 +364,15 @@ def init_postgres_db():
             key TEXT PRIMARY KEY,
             value TEXT NOT NULL,
             updated_at TEXT NOT NULL
+        );
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS user_knowledge (
+            id SERIAL PRIMARY KEY,
+            concept TEXT NOT NULL,
+            definition TEXT NOT NULL,
+            source_message TEXT,
+            created_at TEXT NOT NULL
         );
         """,
         "ALTER TABLE hypotheses ALTER COLUMN updated_date TYPE TEXT;",
@@ -487,3 +506,30 @@ def get_tracked_days_count() -> int:
 def get_distinct_dates() -> List[str]:
     rows = db_client.fetchall("SELECT DISTINCT date FROM launches ORDER BY date ASC")
     return [r["date"] for r in rows]
+
+
+def save_user_knowledge(concept: str, definition: str, source_message: str = "") -> Dict[str, Any]:
+    now = datetime.utcnow().isoformat()
+    # Check if concept already exists
+    existing = db_client.fetchone("SELECT id FROM user_knowledge WHERE LOWER(concept) = LOWER(?)", (concept.strip(),))
+    if existing:
+        db_client.execute(
+            "UPDATE user_knowledge SET definition = ?, source_message = ?, created_at = ? WHERE id = ?",
+            (definition.strip(), source_message.strip(), now, existing["id"])
+        )
+        return {"id": existing["id"], "concept": concept, "definition": definition, "action": "updated"}
+    else:
+        db_client.execute(
+            "INSERT INTO user_knowledge (concept, definition, source_message, created_at) VALUES (?, ?, ?, ?)",
+            (concept.strip(), definition.strip(), source_message.strip(), now)
+        )
+        return {"concept": concept, "definition": definition, "action": "created"}
+
+
+def get_all_user_knowledge() -> List[Dict[str, Any]]:
+    try:
+        rows = db_client.fetchall("SELECT * FROM user_knowledge ORDER BY created_at DESC")
+        return rows or []
+    except Exception:
+        return []
+

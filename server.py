@@ -274,15 +274,17 @@ async def handle_chat_query(request: Request):
     try:
         body = await request.json()
         message = body.get("message", "").strip()
+        history = body.get("history", [])
         if not message:
             return JSONResponse({"status": "error", "error": "Message is required"}, status_code=400)
         
         from llm_engine import ask_ph_assistant
-        result = ask_ph_assistant(message)
+        result = ask_ph_assistant(message, history=history)
         return {
             "status": "success",
             "answer": result.get("answer"),
             "sources": result.get("sources", []),
+            "learned": result.get("learned"),
             "found": result.get("found", False)
         }
     except Exception as e:
