@@ -184,3 +184,260 @@ Pick one distinct persona and solve one bottleneck completely. When your tagline
         "full_insights": ai_text
     }
 
+
+def search_knowledge_base(query: str, limit: int = 20) -> Dict[str, Any]:
+    """
+    Retrieves grounded context from the database based on the user's natural language question.
+    Searches launches, hypotheses, and daily summaries.
+    """
+    from db import db_client
+    import re
+    from datetime import datetime, timedelta
+
+    query_lower = query.lower()
+
+    # Extract potential days restriction (e.g. "last 5 days", "past 3 days", "last week")
+    days_limit = None
+    days_match = re.search(r'(?:last|past)\s+(\d+)\s+days?', query_lower)
+    if days_match:
+        days_limit = int(days_match.group(1))
+    elif "last week" in query_lower or "past week" in query_lower:
+        days_limit = 7
+
+    # Stopwords to filter out for keyword extraction
+    stopwords = {
+        "the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for", "of", "with",
+        "by", "from", "about", "into", "through", "during", "before", "after", "above",
+        "below", "under", "again", "further", "then", "once", "here", "there", "when",
+        "where", "why", "how", "all", "any", "both", "each", "few", "more", "most", "other",
+        "some", "such", "no", "nor", "not", "only", "own", "same", "so", "than", "too",
+        "very", "can", "will", "just", "should", "now", "were", "there", "any", "find",
+        "show", "tell", "what", "which", "who", "whom", "this", "that", "these", "those",
+        "am", "is", "are", "was", "be", "been", "being", "have", "has", "had", "do", "does",
+        "did", "would", "could", "winners", "winner", "winning", "product", "products",
+        "producthunt", "launches", "launch", "trend", "trends", "last", "days", "day", "past",
+        "you", "your", "yours", "please", "see", "related", "like", "give", "list"
+    }
+
+    raw_tokens = re.findall(r'[a-zA-Z0-9]+', query_lower)
+    keywords = [t for t in raw_tokens if t not in stopwords and len(t) >= 3]
+
+    # Specific topic synonyms
+    if "crypto" in query_lower or "cryptocurrency" in query_lower or "web3" in query_lower or "blockchain" in query_lower:
+        keywords.extend(["crypto", "cryptocurrency", "web3", "blockchain", "token", "bitcoin", "ethereum", "defi"])
+    if "gamification" in query_lower:
+        keywords.extend(["gamification"])
+    elif "gaming" in query_lower or "game" in query_lower:
+        keywords.extend(["gaming", "game"])
+    if "open-source" in query_lower or "open source" in query_lower or "oss" in query_lower:
+        keywords.extend(["open source", "open-source", "self-host"])
+
+    keywords = list(set(keywords))
+
+    # Fetch recent distinct dates if date filtered
+    cutoff_date = None
+    if days_limit:
+        distinct_dates_rows = db_client.fetchall("SELECT DISTINCT date FROM launches ORDER BY date DESC")
+        if distinct_dates_rows:
+            all_dates = [r["date"] for r in distinct_dates_rows]
+            if len(all_dates) >= days_limit:
+                cutoff_date = all_dates[days_limit - 1]
+            else:
+                cutoff_date = all_dates[-1]
+
+    # Search launches
+    matched_launches = []
+    if keywords:
+        # Build flexible search query across fields
+        clauses = []
+        params = []
+        for kw in keywords[:6]:  # Limit top keywords
+            pattern = f"%{kw}%"
+            clauses.append("(LOWER(name) LIKE ? OR LOWER(tagline) LIKE ? OR LOWER(description) LIKE ? OR LOWER(topics) LIKE ? OR LOWER(archetype) LIKE ? OR LOWER(framing_style) LIKE ?)")
+            params.extend([pattern, pattern, pattern, pattern, pattern, pattern])
+
+        where_sql = " OR ".join(clauses)
+        if cutoff_date:
+            where_sql = f"({where_sql}) AND date >= ?"
+            params.append(cutoff_date)
+
+        # If user explicitly asked for winners, prioritize rank = 1 or top 3
+        if "winner" in query_lower or "won" in query_lower or "#1" in query_lower:
+            query_sql = f"SELECT * FROM launches WHERE ({where_sql}) ORDER BY (rank = 1) DESC, votes_count DESC LIMIT {limit}"
+        else:
+            query_sql = f"SELECT * FROM launches WHERE ({where_sql}) ORDER BY votes_count DESC LIMIT {limit}"
+
+        try:
+            matched_launches = db_client.fetchall(query_sql, tuple(params))
+        except Exception:
+            matched_launches = []
+    else:
+        # If no specific keywords (e.g. "What happened in the last 3 days?"), query by date or top launches
+        if cutoff_date:
+            matched_launches = db_client.fetchall(
+                "SELECT * FROM launches WHERE date >= ? ORDER BY date DESC, rank ASC LIMIT ?",
+                (cutoff_date, limit)
+            )
+        else:
+            # Fallback: general query, return top 10 winners
+            matched_launches = db_client.fetchall(
+                "SELECT * FROM launches WHERE rank = 1 ORDER BY date DESC LIMIT ?",
+                (limit,)
+            )
+
+    # Search hypotheses
+    matched_hypotheses = []
+    if keywords:
+        hyp_clauses = []
+        hyp_params = []
+        for kw in keywords[:5]:
+            pattern = f"%{kw}%"
+            hyp_clauses.append("(LOWER(title) LIKE ? OR LOWER(statement) LIKE ? OR LOWER(category) LIKE ?)")
+            hyp_params.extend([pattern, pattern, pattern])
+        hyp_sql = f"SELECT * FROM hypotheses WHERE {' OR '.join(hyp_clauses)} ORDER BY confidence_score DESC LIMIT 5"
+        try:
+            matched_hypotheses = db_client.fetchall(hyp_sql, tuple(hyp_params))
+        except Exception:
+            matched_hypotheses = []
+    else:
+        matched_hypotheses = db_client.fetchall("SELECT * FROM hypotheses ORDER BY confidence_score DESC LIMIT 5")
+
+    # Search daily summaries / conclusions
+    matched_conclusions = []
+    if "genesis" in query_lower or "day 10" in query_lower:
+        matched_conclusions = db_client.fetchall("SELECT * FROM conclusions WHERE is_genesis = 1 OR day_number = 10 LIMIT 3")
+        if not matched_conclusions:
+            matched_conclusions = db_client.fetchall("SELECT * FROM conclusions ORDER BY day_number ASC LIMIT 2")
+    elif "conclusion" in query_lower or "evolution" in query_lower:
+        matched_conclusions = db_client.fetchall("SELECT * FROM conclusions ORDER BY day_number DESC LIMIT 3")
+
+    return {
+        "keywords": keywords,
+        "days_limit": days_limit,
+        "cutoff_date": cutoff_date,
+        "launches": matched_launches,
+        "hypotheses": matched_hypotheses,
+        "conclusions": matched_conclusions
+    }
+
+
+def ask_ph_assistant(question: str) -> Dict[str, Any]:
+    """
+    Answers questions grounded ONLY in tracked Product Hunt data.
+    Never hallucinates. If zero records match, honestly states so.
+    """
+    from db import get_tracked_days_count
+
+    total_days = get_tracked_days_count()
+    context_data = search_knowledge_base(question)
+    launches = context_data.get("launches", [])
+    hypotheses = context_data.get("hypotheses", [])
+    conclusions = context_data.get("conclusions", [])
+    keywords = context_data.get("keywords", [])
+    days_limit = context_data.get("days_limit")
+
+    # If NO relevant launches, hypotheses, or conclusions are found in database:
+    if not launches and not hypotheses and not conclusions:
+        timeframe_note = f" (specifically filtering for the last {days_limit} days)" if days_limit else ""
+        query_desc = f" matching '{', '.join(keywords)}'" if keywords else ""
+        return {
+            "answer": (
+                f"I could not find any information about that in the tracked Product Hunt launches{timeframe_note}.\n\n"
+                f"Our database currently tracks **{total_days} continuous days** of verified Product Hunt leaderboards, "
+                f"encompassing top developer tools, open-source infrastructure, productivity utilities, audio/creator tools, "
+                f"and design software. No products, winners, or hypotheses{query_desc} were identified in this dataset."
+            ),
+            "sources": [],
+            "found": False
+        }
+
+    # Format retrieved sources into structured context
+    launches_context = []
+    for l in launches[:12]:
+        launches_context.append(
+            f"- Rank #{l.get('rank')} on {l.get('date')}: **{l.get('name')}** "
+            f"(\"{l.get('tagline')}\") | Category: {l.get('archetype', 'Utility')} | "
+            f"Topics: {l.get('topics', '[]')} | {l.get('votes_count', 0)} upvotes, {l.get('comments_count', 0)} comments"
+        )
+    launches_text = "\n".join(launches_context) if launches_context else "No direct launch matches."
+
+    hypotheses_context = []
+    for h in hypotheses[:4]:
+        hypotheses_context.append(
+            f"- [{h.get('status', 'active').upper()} - {int(h.get('confidence_score', 0.5)*100)}% Confidence] "
+            f"**{h.get('title')}**: {h.get('statement')} (Confirmed: {h.get('times_confirmed')}, Challenged: {h.get('times_challenged')})"
+        )
+    hypotheses_text = "\n".join(hypotheses_context) if hypotheses_context else "No matching hypotheses."
+
+    conclusions_context = []
+    for c in conclusions[:2]:
+        conclusions_context.append(
+            f"- Day {c.get('day_number')} ({c.get('date')}): {c.get('executive_summary')}"
+        )
+    conclusions_text = "\n".join(conclusions_context) if conclusions_context else ""
+
+    prompt = f"""You are the PH Trend Hunter AI Assistant. Your job is to answer the user's question with surgical precision based EXCLUSIVELY on the verified Product Hunt launch data provided below.
+
+USER QUESTION:
+"{question}"
+
+VERIFIED PRODUCT HUNT DATA CONTEXT:
+[Tracked Days]: {total_days} days of data available.
+
+[Matching Product Hunt Launches]:
+{launches_text}
+
+[Related Hypotheses & Beliefs]:
+{hypotheses_text}
+
+{f"[Conclusions Context]:" if conclusions_text else ""}
+{conclusions_text}
+
+STRICT GROUNDING & VOICE RULES:
+1. Answer using ONLY the information in the context above.
+2. DO NOT hallucinate, invent products, fabricate upvote counts, or import outside examples.
+3. If the context does not fully answer the user's question, state what is known from the context, and honestly acknowledge what was NOT found in the tracked dataset.
+4. Voice: Knowledgeable friend and product strategist. Direct, warm, crisp.
+5. Absolute bans: No false contrasts ("This isn't about X, it's about Y"), no staccato drama sentences ("Fast. And we are not ready."), no emojis (no 🤖, 🧠, ⚡, 🚀), no marketing hype words ("revolutionary", "game-changer", "unleash", "supercharge").
+6. Format your response cleanly in Markdown with bold product names and bullet points for readability."""
+
+    ai_answer = call_gemini(prompt, temperature=0.2)
+
+    # Fallback response in case Gemini API is offline or unconfigured
+    if not ai_answer:
+        # Build direct deterministic answer from context
+        lines = [f"Based on our tracked database of {total_days} days of Product Hunt launches, here is what was found:\n"]
+        if conclusions:
+            lines.append("\n### Strategic Conclusions Context:")
+            for c in conclusions[:2]:
+                lines.append(f"- **Day {c.get('day_number')} ({c.get('date')})**: {c.get('executive_summary')}")
+        if launches:
+            lines.append("\n### Relevant Launches Found:")
+            for l in launches[:8]:
+                lines.append(f"- **{l.get('name')}** (Rank #{l.get('rank')}, {l.get('date')}): *\"{l.get('tagline')}\"* — {l.get('votes_count')} upvotes. [{l.get('archetype', 'Utility')}]")
+        if hypotheses:
+            lines.append("\n### Related Tracked Hypotheses:")
+            for h in hypotheses[:3]:
+                lines.append(f"- **{h.get('title')}** ({int(h.get('confidence_score', 0.5)*100)}% confidence): {h.get('statement')}")
+        ai_answer = "\n".join(lines)
+
+    # Prepare lightweight sources list for UI reference
+    sources_summary = [
+        {
+            "name": l.get("name"),
+            "rank": l.get("rank"),
+            "date": l.get("date"),
+            "votes_count": l.get("votes_count"),
+            "tagline": l.get("tagline"),
+            "archetype": l.get("archetype")
+        }
+        for l in launches[:8]
+    ]
+
+    return {
+        "answer": ai_answer,
+        "sources": sources_summary,
+        "found": True
+    }
+
+

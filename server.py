@@ -269,6 +269,31 @@ def get_trends():
     }
 
 
+@app.post("/api/chat")
+async def handle_chat_query(request: Request):
+    try:
+        body = await request.json()
+        message = body.get("message", "").strip()
+        if not message:
+            return JSONResponse({"status": "error", "error": "Message is required"}, status_code=400)
+        
+        from llm_engine import ask_ph_assistant
+        result = ask_ph_assistant(message)
+        return {
+            "status": "success",
+            "answer": result.get("answer"),
+            "sources": result.get("sources", []),
+            "found": result.get("found", False)
+        }
+    except Exception as e:
+        import traceback
+        return JSONResponse({
+            "status": "error",
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }, status_code=500)
+
+
 @app.post("/api/actions/trigger")
 def trigger_cycle():
     today_str = datetime.utcnow().strftime("%Y-%m-%d")
