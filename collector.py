@@ -7,6 +7,7 @@ Supports:
 """
 
 import json
+import os
 import re
 import urllib.request
 from datetime import datetime, timedelta
@@ -238,15 +239,29 @@ def ingest_launch_batch(date_str: str, launches_data: List[Dict[str, Any]]) -> D
     }
 
 
-def seed_historical_data() -> Dict[str, Any]:
-    """Populates 14 days of realistic launch data to demonstrate Day 1-10 accumulation, Genesis, and Day 11-14 calibration."""
-    base_date = datetime.utcnow().date()
+def seed_historical_data(days_count: int = 28) -> Dict[str, Any]:
+    """
+    Populates up to 28 days of data up to today.
+    Uses official Product Hunt GraphQL API whenever token is present.
+    Ensures Day 1-10 accumulation, Day 10 Genesis, and subsequent recalibration.
+    """
+    today = datetime.utcnow().date()
     results = []
     
-    for day_pack in HISTORICAL_SEED_DATA:
-        date_offset = day_pack["date_offset"]
-        target_date = (base_date - timedelta(days=date_offset)).strftime("%Y-%m-%d")
-        res = ingest_launch_batch(target_date, day_pack["launches"])
+    # Process from oldest date (e.g. today - 27 days) up to today
+    for days_ago in reversed(range(days_count)):
+        target_date = (today - timedelta(days=days_ago)).strftime("%Y-%m-%d")
+        
+        launches = fetch_from_ph_graphql(target_date)
+        if not launches:
+            # Check if we have preset historical launch data for this offset
+            matching_pack = next((p for p in HISTORICAL_SEED_DATA if p.get("date_offset") == days_ago), None)
+            if matching_pack:
+                launches = matching_pack["launches"]
+            else:
+                launches = generate_dynamic_fallback_launches(target_date)
+                
+        res = ingest_launch_batch(target_date, launches)
         results.append(res)
         
     return {
@@ -256,66 +271,200 @@ def seed_historical_data() -> Dict[str, Any]:
     }
 
 
+
+def _get_ph_api_token() -> Optional[str]:
+    token = os.environ.get("PRODUCTHUNT_API_TOKEN") or os.environ.get("PH_API_TOKEN")
+    if token:
+        return token
+    env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
+    if os.path.exists(env_path):
+        try:
+            with open(env_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if line.startswith("PRODUCTHUNT_API_TOKEN="):
+                        val = line.split("=", 1)[1].strip().strip('"').strip("'")
+                        if val:
+                            os.environ["PRODUCTHUNT_API_TOKEN"] = val
+                            return val
+        except Exception:
+            pass
+    return None
+
+
+def fetch_from_ph_graphql(target_date_str: str) -> List[Dict[str, Any]]:
+    """
+    Fetches real launches from the official Product Hunt GraphQL API.
+    """
+    token = _get_ph_api_token()
+    if not token:
+        return []
+
+    dt = datetime.strptime(target_date_str, "%Y-%m-%d")
+    posted_after = f"{dt.strftime('%Y-%m-%d')}T00:00:00Z"
+    posted_before = f"{dt.strftime('%Y-%m-%d')}T23:59:59Z"
+
+    query = """
+    query GetDailyLaunches($postedAfter: DateTime!, $postedBefore: DateTime!) {
+      posts(order: VOTES, postedAfter: $postedAfter, postedBefore: $postedBefore, first: 15) {
+        edges {
+          node {
+            id
+            name
+            tagline
+            description
+            votesCount
+            commentsCount
+            url
+            website
+            user {
+              name
+              username
+            }
+            topics(first: 4) {
+              edges {
+                node {
+                  name
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    """
+
+    payload = {
+        "query": query,
+        "variables": {
+            "postedAfter": posted_after,
+            "postedBefore": posted_before
+        }
+    }
+
+    req = urllib.request.Request(
+        "https://api.producthunt.com/v2/api/graphql",
+        data=json.dumps(payload).encode("utf-8"),
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "User-Agent": "PHTrendHunter/1.0"
+        }
+    )
+
+    try:
+        with urllib.request.urlopen(req, timeout=12) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            edges = data.get("data", {}).get("posts", {}).get("edges", [])
+            launches = []
+            for edge in edges:
+                node = edge.get("node", {})
+                if not node or not node.get("name"):
+                    continue
+                topics = [t.get("node", {}).get("name", "") for t in node.get("topics", {}).get("edges", []) if t.get("node")]
+                launches.append({
+                    "name": node.get("name"),
+                    "tagline": node.get("tagline") or node.get("description") or "",
+                    "description": node.get("description") or node.get("tagline") or "",
+                    "votes": int(node.get("votesCount", 0)),
+                    "comments": int(node.get("commentsCount", 0)),
+                    "topics": topics or ["Tech", "Productivity"],
+                    "product_url": node.get("url") or "",
+                    "maker": node.get("user", {}).get("username", "Maker") if node.get("user") else "Maker"
+                })
+            return launches
+    except Exception as e:
+        print(f"Product Hunt GraphQL API error for {target_date_str}: {e}")
+        return []
+
+
+def generate_dynamic_fallback_launches(target_date_str: str) -> List[Dict[str, Any]]:
+    """
+    Generates realistic, varied daily launches if the network or API quota fails,
+    respecting weekly calendar seasonality (weekend vs weekday).
+    """
+    import hashlib
+    dt = datetime.strptime(target_date_str, "%Y-%m-%d")
+    is_weekend = dt.weekday() in (5, 6)
+    
+    # Deterministic seed per date so a date doesn't mutate on refresh
+    date_hash = int(hashlib.md5(target_date_str.encode()).hexdigest()[:8], 16)
+
+    weekday_winner_pool = [
+        {"name": "Prisma Pulse", "tagline": "Real-time change data capture for Postgres databases", "votes": 1280, "topics": ["Developer Tools", "Database", "Open Source"]},
+        {"name": "Resend Workflows", "tagline": "Visual email automation engine built for developers", "votes": 1140, "topics": ["Email", "Developer Tools", "SaaS"]},
+        {"name": "v0 Components", "tagline": "Turn natural language into copy-paste shadcn UI components", "votes": 1390, "topics": ["AI", "Developer Tools", "Design"]},
+        {"name": "Documenso 2", "tagline": "The open-source DocuSign alternative you can self-host", "votes": 1050, "topics": ["Open Source", "Security"]},
+        {"name": "GitKraken AI", "tagline": "Conversational git history and interactive rebase assistant", "votes": 1120, "topics": ["Developer Tools", "AI"]},
+        {"name": "Neon Branching 2", "tagline": "Instant serverless Postgres branches for every git pull request", "votes": 1210, "topics": ["Database", "Developer Tools"]},
+        {"name": "PostHog Surveys", "tagline": "Open-source targeted user feedback prompts for product engineers", "votes": 980, "topics": ["Open Source", "Analytics"]},
+        {"name": "Dify Workflows", "tagline": "Visual multi-agent LLM orchestrator with custom Python steps", "votes": 1320, "topics": ["AI", "Open Source", "Developer Tools"]},
+        {"name": "Supabase Queues", "tagline": "Durable background task processing inside your Postgres instance", "votes": 1240, "topics": ["Developer Tools", "Database", "Open Source"]}
+    ]
+
+    weekend_winner_pool = [
+        {"name": "RetroSound 8-bit", "tagline": "Turn modern Spotify songs into authentic GameBoy chiptunes", "votes": 680, "topics": ["Audio", "Gaming", "Creator"]},
+        {"name": "DeskSetup Studio", "tagline": "Interactive 3D workspace builder for remote creators", "votes": 610, "topics": ["Design", "3D", "Creator"]},
+        {"name": "Minimalist Wallpapers 4K", "tagline": "Ultra-clean geometric desktop backgrounds updated every hour", "votes": 590, "topics": ["Design", "Productivity"]},
+        {"name": "LoFi Generator Pro", "tagline": "Generative background binaural beats for deep coding sessions", "votes": 640, "topics": ["Audio", "Productivity"]},
+        {"name": "PlantWatered", "tagline": "Minimalist plant care reminders with botanical guides", "votes": 520, "topics": ["Lifestyle", "Mobile"]},
+        {"name": "TeaTimer Pro", "tagline": "Optimal steeping countdowns for specialty loose-leaf teas", "votes": 490, "topics": ["Lifestyle", "Health"]}
+    ]
+
+    runner_up_pool = [
+        {"name": "TidyTab Mac", "tagline": "Group dormant browser tabs into clean markdown notes", "votes": 720, "topics": ["Mac", "Productivity"]},
+        {"name": "QuickPulse Alert", "tagline": "Uptime monitor with instant Telegram notifications", "votes": 640, "topics": ["DevOps", "Utility"]},
+        {"name": "VectorForge", "tagline": "Generate crisp SVG brand marks with text descriptions", "votes": 560, "topics": ["Design", "AI"]},
+        {"name": "MockFlow Canvas", "tagline": "Interactive wireframing studio for product teams", "votes": 480, "topics": ["Design", "Prototyping"]},
+        {"name": "KeyPrompt CLI", "tagline": "Quick searchable cheat-sheet for terminal power users", "votes": 410, "topics": ["Developer Tools", "CLI"]}
+    ]
+
+    winner = weekend_winner_pool[date_hash % len(weekend_winner_pool)] if is_weekend else weekday_winner_pool[date_hash % len(weekday_winner_pool)]
+    
+    # Adjust votes with date variance (+/- 12%)
+    variance = ((date_hash % 25) - 12) / 100.0
+    w_votes = int(winner["votes"] * (1.0 + variance))
+
+    launches = [{
+        "name": winner["name"],
+        "tagline": winner["tagline"],
+        "votes": w_votes,
+        "comments": int(w_votes * 0.11),
+        "topics": winner["topics"],
+        "maker": "community_maker"
+    }]
+
+    for idx, r in enumerate(runner_up_pool[:4], 1):
+        r_votes = int(w_votes * (0.85 - (idx * 0.14)))
+        launches.append({
+            "name": r["name"],
+            "tagline": r["tagline"],
+            "votes": max(150, r_votes),
+            "comments": max(15, int(r_votes * 0.09)),
+            "topics": r["topics"],
+            "maker": f"contender_{idx}"
+        })
+
+    return launches
+
+
 def fetch_live_producthunt(target_date_str: Optional[str] = None) -> Dict[str, Any]:
     """
-    Fetches real Product Hunt launches.
-    Attempts live HTTP scraping of Product Hunt archive page;
-    falls back cleanly to synthetic current day data if network blocked.
+    Fetches Product Hunt launches for a given date.
+    Priority order:
+    1. Official Product Hunt GraphQL API (using PRODUCTHUNT_API_TOKEN)
+    2. Dynamic realistic seasonal launch cohort
     """
     if not target_date_str:
         target_date_str = datetime.utcnow().strftime("%Y-%m-%d")
-        
-    dt = datetime.strptime(target_date_str, "%Y-%m-%d")
-    url = f"https://www.producthunt.com/leaderboard/daily/{dt.year}/{dt.month}/{dt.day}"
-    
-    launches = []
-    headers = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"}
-    
-    try:
-        req = urllib.request.Request(url, headers=headers)
-        with urllib.request.urlopen(req, timeout=8) as resp:
-            html = resp.read().decode("utf-8")
-            # Parse leaderboard items using regex on next.js or html markers
-            matches = re.findall(r'"name":"([^"]+)".*?"tagline":"([^"]+)".*?"votesCount":(\d+)', html)
-            for idx, m in enumerate(matches[:10], 1):
-                name, tagline, votes = m
-                launches.append({
-                    "name": name,
-                    "tagline": tagline,
-                    "votes": int(votes),
-                    "comments": int(int(votes) * 0.12),
-                    "topics": ["Tech", "SaaS"]
-                })
-    except Exception:
-        pass
-        
-    # If network call did not retrieve items (e.g. sandbox or layout variance),
-    # generate a realistic live snapshot for today
+
+    # 1. Official GraphQL API
+    launches = fetch_from_ph_graphql(target_date_str)
+
+    # 2. Dynamic seasonal fallback if API returned no launches
     if not launches:
-        day_names = ["Apex AI", "PostgresEdge", "OpenVoice 2", "TaskFlow Mac", "FigmaToTailwind"]
-        taglines = [
-            "Autonomous multi-agent code refactoring in your IDE",
-            "Open source serverless database with real-time subscriptions",
-            "Natural voice generation studio you can run locally",
-            "Minimalist keyboard-driven task organizer for founders",
-            "Turn Figma designs into clean React code in 1 click"
-        ]
-        topics_pool = [
-            ["Developer Tools", "AI", "Open Source"],
-            ["Database", "Cloud", "Open Source"],
-            ["AI", "Audio", "Creator"],
-            ["Productivity", "Mac"],
-            ["Design", "Developer Tools"]
-        ]
-        
-        for i in range(5):
-            launches.append({
-                "name": f"{day_names[i]}",
-                "tagline": taglines[i],
-                "votes": 950 - (i * 120),
-                "comments": 120 - (i * 16),
-                "topics": topics_pool[i],
-                "maker": f"maker_{i+1}"
-            })
-            
+        launches = generate_dynamic_fallback_launches(target_date_str)
+
     return ingest_launch_batch(target_date_str, launches)
+
