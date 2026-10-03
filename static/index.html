@@ -588,7 +588,11 @@
       const dateSelect = document.getElementById('date-select');
       if (data.distinct_dates && data.distinct_dates.length > 0) {
         const currentVal = dateSelect.value;
-        dateSelect.innerHTML = data.distinct_dates.slice().reverse().map(d => `<option value="${d}">${d}</option>`).join('');
+        const latestDate = data.distinct_dates[data.distinct_dates.length - 1];
+        dateSelect.innerHTML = data.distinct_dates.slice().reverse().map(d => {
+          const isLatest = d === latestDate;
+          return `<option value="${d}">${d}${isLatest ? ' (Today • Live)' : ''}</option>`;
+        }).join('');
         if (currentVal && data.distinct_dates.includes(currentVal)) {
           dateSelect.value = currentVal;
         }
@@ -927,8 +931,30 @@
         return;
       }
 
-      container.innerHTML = data.launches.map(p => {
+      const allZeroVotes = data.launches.every(p => (p.votes_count || 0) === 0);
+      let bannerHtml = '';
+      if (allZeroVotes) {
+        bannerHtml = `
+          <div class="p-4 mb-3 bg-orange-500/10 border border-orange-500/20 rounded-xl flex items-start sm:items-center justify-between gap-3 text-xs text-orange-200">
+            <div class="flex items-center space-x-2.5">
+              <span class="inline-block w-2.5 h-2.5 rounded-full bg-orange-400 animate-pulse shrink-0"></span>
+              <span><strong>Live Competition in Progress:</strong> Today's launch day is actively underway. Product Hunt conceals vote totals during early morning hours (blind voting) to eliminate bandwagon bias; final votes and official rankings lock at 11:59 PM PT.</span>
+            </div>
+            <span class="px-2.5 py-1 bg-orange-500/20 text-orange-400 font-mono text-[11px] font-semibold rounded shrink-0">Voting Active</span>
+          </div>
+        `;
+      }
+
+      container.innerHTML = bannerHtml + data.launches.map(p => {
         const isWinner = p.rank === 1;
+        const hasVotes = (p.votes_count || 0) > 0;
+        const votesDisplay = hasVotes 
+          ? `<span class="text-sm font-bold text-white">${p.votes_count} <span class="text-slate-400 font-normal">upvotes</span></span>`
+          : `<span class="text-xs font-semibold text-orange-400/90 italic">Voting active</span>`;
+        const ratioDisplay = hasVotes 
+          ? (p.engagement_ratio || ((p.comments_count / p.votes_count) * 100).toFixed(1) + '%')
+          : '—';
+
         return `
           <div class="p-5 rounded-xl bg-slate-900 border ${isWinner ? 'border-orange-500/40 bg-gradient-to-r from-orange-500/5 to-transparent' : 'border-slate-800'} flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div class="flex items-start space-x-4">
@@ -951,12 +977,12 @@
 
             <div class="flex items-center space-x-4 self-end sm:self-center shrink-0">
               <div class="text-right">
-                <div class="text-sm font-bold text-white">${p.votes_count} <span class="text-slate-400 font-normal">upvotes</span></div>
+                <div>${votesDisplay}</div>
                 <div class="text-xs text-slate-400">${p.comments_count} comments</div>
               </div>
               <div class="px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-right">
                 <div class="text-xs text-slate-400">Discussion Ratio</div>
-                <div class="text-sm font-mono font-bold text-orange-400">${p.engagement_ratio || ((p.comments_count/Math.max(1, p.votes_count))*100).toFixed(1)}%</div>
+                <div class="text-sm font-mono font-bold text-orange-400">${ratioDisplay}</div>
               </div>
             </div>
           </div>
@@ -1018,14 +1044,18 @@
       // Vote Chart
       const voteCtx = document.getElementById('voteChart').getContext('2d');
       if (charts.vote) charts.vote.destroy();
+
+      // Only plot completed days up to yesterday (cut off days where winner votes are 0 or unfinalized)
+      const completedVotes = (data.vote_progression || []).filter(d => (d.winner_votes || 0) > 0);
+
       charts.vote = new Chart(voteCtx, {
         type: 'line',
         data: {
-          labels: data.vote_progression.map(d => `Day ${d.day_number} (${d.date.slice(5)})`),
+          labels: completedVotes.map(d => `Day ${d.day_number} (${d.date.slice(5)})`),
           datasets: [
             {
               label: '#1 Winner Upvotes',
-              data: data.vote_progression.map(d => d.winner_votes),
+              data: completedVotes.map(d => d.winner_votes),
               borderColor: '#f97316',
               backgroundColor: 'rgba(249, 115, 22, 0.1)',
               tension: 0.3,
@@ -1033,7 +1063,7 @@
             },
             {
               label: 'Median Day Upvotes',
-              data: data.vote_progression.map(d => d.median_votes),
+              data: completedVotes.map(d => d.median_votes),
               borderColor: '#64748b',
               borderDash: [4, 4],
               tension: 0.3

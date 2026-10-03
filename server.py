@@ -260,6 +260,7 @@ def get_trends():
     SELECT d.date, d.day_number, d.median_votes, d.winner_name,
            (SELECT votes_count FROM launches l WHERE l.date = d.date AND l.rank = 1) as winner_votes
     FROM daily_summaries d
+    WHERE (SELECT votes_count FROM launches l WHERE l.date = d.date AND l.rank = 1) > 0
     ORDER BY d.date ASC
     """)
     return {
